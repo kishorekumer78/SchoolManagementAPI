@@ -47,7 +47,7 @@ namespace SchoolMgt
             var appSettingsSection = Configuration.GetSection("AppSettings");
             services.Configure<AppSettings>(appSettingsSection);
             var appSettings = appSettingsSection.Get<AppSettings>();
-
+            // 
             var key = Encoding.ASCII.GetBytes(appSettings.Secret);
 
             // Authentication service added with Jwt options
@@ -93,8 +93,8 @@ namespace SchoolMgt
             app.UseStaticFiles();
 
             app.UseRouting();
-            app.UseAuthentication();
-            app.UseAuthorization();
+            app.UseAuthentication(); //  before authorization
+            app.UseAuthorization(); 
 
             app.UseMvc(routes =>
             {
