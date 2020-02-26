@@ -59,6 +59,7 @@ namespace SchoolMgt
 
             }).AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
+                // Here we mention what are the items in the jwt token that is validated when the user has a jwt token
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
