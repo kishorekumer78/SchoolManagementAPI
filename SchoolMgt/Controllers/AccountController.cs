@@ -126,7 +126,8 @@ namespace SchoolMgt.Controllers
                 }
 
             }
-            return null;
+            // User does not exist with provided username
+            return NotFound(new {error = $"User with {model.UserName} is not available."});
         }
     }
 }

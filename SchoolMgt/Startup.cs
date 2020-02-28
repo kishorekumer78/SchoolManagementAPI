@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -58,19 +60,30 @@ namespace SchoolMgt
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
 
             }).AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-            {
-                // Here we mention what are the items in the jwt token that is validated when the user has a jwt token
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidIssuer = appSettings.Site,
-                    ValidAudience = appSettings.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                            {
+                                // Here we mention what are the items in the jwt token that is validated when the user has a jwt token
+                                options.TokenValidationParameters = new TokenValidationParameters
+                                {
+                                    ValidateIssuerSigningKey = true,
+                                    ValidateIssuer = true,
+                                    ValidateAudience = true,
+                                    ValidIssuer = appSettings.Site,
+                                    ValidAudience = appSettings.Audience,
+                                    IssuerSigningKey = new SymmetricSecurityKey(key)
 
-                };
+                                };
+                            });
+
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("LoggedInPrevilage", policy => policy.RequireRole("Admin", "User").RequireAuthenticatedUser().RequireClaim(ClaimTypes.Role, "Admin", "User"));
+
+                options.AddPolicy("AdminPrevilage", policy => policy.RequireRole("Admin").RequireAuthenticatedUser().RequireClaim(ClaimTypes.Role, "Admin"));
+
             });
+
+
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -95,7 +108,7 @@ namespace SchoolMgt
 
             app.UseRouting();
             app.UseAuthentication(); //  before authorization
-            app.UseAuthorization(); 
+            app.UseAuthorization();
 
             app.UseMvc(routes =>
             {

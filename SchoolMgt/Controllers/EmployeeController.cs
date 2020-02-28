@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,7 @@ namespace SchoolMgt.Controllers
 
         // Get All Employees 
         [HttpGet]
+        [Authorize(Policy = "LoggedInPrevilage")]
         public IActionResult Get()
         {
             return Ok(context.Employees.Include(x => x.Department).ToList());
@@ -37,15 +39,24 @@ namespace SchoolMgt.Controllers
 
         // GET: api/Employee/5
         [HttpGet("{id}")]
-        public string Get(int id)
+        public IActionResult Get(int id)
         {
-            return "value";
+            var emp = context.Employees.FirstOrDefault(x => x.Id == id);
+            if (emp != null)
+            {
+                return Ok(emp);
+            }
+            return NotFound(new { error = $"Employee with ID = {id} does not exist" });
         }
 
         // POST: api/Employee
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromForm] EmployeeCreateViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             // take out the image from model   and assign file name to it          
             GetPhotoPath(model.Photo, out IFormFile img, out string uniqueFileName, out string filePath);
             var employee = new Employee
@@ -75,21 +86,24 @@ namespace SchoolMgt.Controllers
                         await img.CopyToAsync(fileStream);
                     }
                 }
+                return Ok(employee);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw;
+                return StatusCode((int)HttpStatusCode.InternalServerError, new { error = e.Message, message = "Employee Creation Unsuccessful" });
             }
 
-
-            return Ok(employee);
         }
 
 
         // PUT: api/Employee/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutAsync([FromRoute] int id, [FromBody] EmployeeCreateViewModel model)
+        public async Task<IActionResult> PutAsync([FromRoute] int id, [FromForm] EmployeeCreateViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             // bring the old details of employee from db
             Employee emp = context.Employees.FirstOrDefault(x => x.Id == id);
             // if employee with passed id does not exist return error message
@@ -141,23 +155,32 @@ namespace SchoolMgt.Controllers
             catch (Exception e)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, new { error = e.Message });
-            }
+            }           
 
-            // bring the employee to be updated from the  db with id
-            // update its properties
-            // photo may be new photo => delete old photo => add new photo to the image folder => update the image name in db
-            // may be employees old photo need to  remain same
-
-            
         }
 
 
         // DELETE: api/ApiWithActions/5
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public async Task<IActionResult> Delete([FromRoute] int id)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var emp = context.Employees.FirstOrDefault(x => x.Id == id);
+            if (emp == null)
+            {
+                return NotFound(new { error = $"Employee with ID  {id} does not exist" });
+            }
+            context.Employees.Remove(emp);
+            await context.SaveChangesAsync();
+            return Ok(new { message = $"Employee with ID = {emp.Id} has been deleted successfully" });
         }
 
+
+        // This method receives a imageFile and gives the file , filePath and a unique filepath to save in the server
         private void GetPhotoPath(IFormFile image, out IFormFile img, out string uniqueFileName, out string filePath)
         {
             img = image;
@@ -165,6 +188,7 @@ namespace SchoolMgt.Controllers
             uniqueFileName = Guid.NewGuid().ToString() + "_" + ((img == null) ? "" : img.FileName);
             filePath = Path.Combine(uploadFolder, uniqueFileName);
         }
+        // This method receives a file name and deletes the file from server image folder
         private void DeletePhoto(string photoName)
         {
             string filePath = Path.Combine(environment.WebRootPath, "images", photoName);
